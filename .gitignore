@@ -44,3 +44,6 @@ next-env.d.ts
 # Cloudflare
 .dev.vars
 .open-next
+
+# Cursor
+.cursor/
