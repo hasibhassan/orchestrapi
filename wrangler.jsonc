@@ -1,8 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "./custom-worker.ts",
   "name": "orchestrapi",
-  "compatibility_date": "2025-03-25",
+  "compatibility_date": "2025-07-07",
   "compatibility_flags": [
     // Enable Node.js API
     // see https://developers.cloudflare.com/workers/configuration/compatibility-flags/#nodejs-compatibility-flag
@@ -20,13 +20,14 @@
       "binding": "WORKER_SELF_REFERENCE",
       // The service should match the "name" of your worker
       "service": "orchestrapi"
+    },
+    {
+      "binding": "AGENT_PROXY_WORKER",
+      "service": "orchestrapi-agent-proxy-worker"
     }
   ],
-  "r2_buckets": [
-    // Create a R2 binding with the binding name "NEXT_INC_CACHE_R2_BUCKET"
-    // {
-    //   "binding": "NEXT_INC_CACHE_R2_BUCKET",
-    //   "bucket_name": "<BUCKET_NAME>",
-    // },
-  ]
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }

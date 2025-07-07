@@ -1,11 +1,11 @@
+import { cn } from '@/lib/utils'
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-} from "@assistant-ui/react";
-import type { FC } from "react";
+} from '@assistant-ui/react'
 import {
   ArrowDownIcon,
   CheckIcon,
@@ -15,20 +15,20 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SendHorizontalIcon,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+} from 'lucide-react'
+import type { FC } from 'react'
 
-import { Button } from "@/components/ui/button";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { ToolFallback } from "./tool-fallback";
+import { MarkdownText } from '@/components/assistant-ui/markdown-text'
+import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button'
+import { Button } from '@/components/ui/button'
+import { ToolFallback } from './tool-fallback'
 
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
       className="bg-background box-border flex h-full flex-col overflow-hidden"
       style={{
-        ["--thread-max-width" as string]: "42rem",
+        ['--thread-max-width' as string]: '42rem',
       }}
     >
       <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
@@ -52,8 +52,8 @@ export const Thread: FC = () => {
         </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
-  );
-};
+  )
+}
 
 const ThreadScrollToBottom: FC = () => {
   return (
@@ -66,8 +66,8 @@ const ThreadScrollToBottom: FC = () => {
         <ArrowDownIcon />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
-  );
-};
+  )
+}
 
 const ThreadWelcome: FC = () => {
   return (
@@ -79,8 +79,8 @@ const ThreadWelcome: FC = () => {
         <ThreadWelcomeSuggestions />
       </div>
     </ThreadPrimitive.Empty>
-  );
-};
+  )
+}
 
 const ThreadWelcomeSuggestions: FC = () => {
   return (
@@ -106,8 +106,8 @@ const ThreadWelcomeSuggestions: FC = () => {
         </span>
       </ThreadPrimitive.Suggestion>
     </div>
-  );
-};
+  )
+}
 
 const Composer: FC = () => {
   return (
@@ -120,8 +120,8 @@ const Composer: FC = () => {
       />
       <ComposerAction />
     </ComposerPrimitive.Root>
-  );
-};
+  )
+}
 
 const ComposerAction: FC = () => {
   return (
@@ -149,8 +149,8 @@ const ComposerAction: FC = () => {
         </ComposerPrimitive.Cancel>
       </ThreadPrimitive.If>
     </>
-  );
-};
+  )
+}
 
 const UserMessage: FC = () => {
   return (
@@ -163,8 +163,8 @@ const UserMessage: FC = () => {
 
       <BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
     </MessagePrimitive.Root>
-  );
-};
+  )
+}
 
 const UserActionBar: FC = () => {
   return (
@@ -179,8 +179,8 @@ const UserActionBar: FC = () => {
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
-  );
-};
+  )
+}
 
 const EditComposer: FC = () => {
   return (
@@ -196,8 +196,8 @@ const EditComposer: FC = () => {
         </ComposerPrimitive.Send>
       </div>
     </ComposerPrimitive.Root>
-  );
-};
+  )
+}
 
 const AssistantMessage: FC = () => {
   return (
@@ -206,14 +206,36 @@ const AssistantMessage: FC = () => {
         <MessagePrimitive.Content
           components={{ Text: MarkdownText, tools: { Fallback: ToolFallback } }}
         />
+        <MessagePrimitive.If submittedFeedback={undefined}>
+          {
+            (({
+              message,
+            }: {
+              message: { role?: string; reasoning?: string[] }
+            }) =>
+              message?.role === 'assistant' &&
+              message?.reasoning &&
+              Array.isArray(message.reasoning) &&
+              message.reasoning.length > 0 ? (
+                <div className="mt-2 rounded bg-muted px-4 py-2 text-xs text-muted-foreground">
+                  <div className="font-semibold mb-1">Reasoning trace:</div>
+                  <ul className="list-disc pl-5">
+                    {message.reasoning.map((step: string, i: number) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null) as unknown as React.ReactNode
+          }
+        </MessagePrimitive.If>
       </div>
 
       <AssistantActionBar />
 
       <BranchPicker className="col-start-2 row-start-2 -ml-2 mr-2" />
     </MessagePrimitive.Root>
-  );
-};
+  )
+}
 
 const AssistantActionBar: FC = () => {
   return (
@@ -239,8 +261,8 @@ const AssistantActionBar: FC = () => {
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>
     </ActionBarPrimitive.Root>
-  );
-};
+  )
+}
 
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
@@ -250,7 +272,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "text-muted-foreground inline-flex items-center text-xs",
+        'text-muted-foreground inline-flex items-center text-xs',
         className
       )}
       {...rest}
@@ -269,8 +291,8 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
+  )
+}
 
 const CircleStopIcon = () => {
   return (
@@ -283,5 +305,5 @@ const CircleStopIcon = () => {
     >
       <rect width="10" height="10" x="3" y="3" rx="2" />
     </svg>
-  );
-};
+  )
+}

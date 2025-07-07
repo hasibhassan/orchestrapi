@@ -1,24 +1,77 @@
-import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { streamText } from "ai";
+import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { v4 as uuidv4 } from 'uuid'
 
-export const runtime = "edge";
-export const maxDuration = 30;
+export const maxDuration = 30
 
-export async function POST(req: Request) {
-  const { messages, system, tools } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4o"),
-    messages,
-    // forward system prompt and tools from the frontend
-    toolCallStreaming: true,
-    system,
-    tools: {
-      ...frontendTools(tools),
-    },
-    onError: console.log,
-  });
-
-  return result.toDataStreamResponse();
+// Helper to parse cookies from the request
+function getCookie(req: Request, name: string): string | undefined {
+  const cookie = req.headers.get('cookie')
+  if (!cookie) return undefined
+  const match = cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : undefined
 }
+
+// Proxy all chat requests to the deployed Agent Worker endpoint
+export async function POST(req: Request) {
+  // Session management
+  let sessionId = getCookie(req, 'session_id')
+  let setSessionCookie = false
+  if (!sessionId) {
+    sessionId = uuidv4()
+    setSessionCookie = true
+  }
+
+  // Get the Cloudflare context (env with service bindings)
+  const { env } = getCloudflareContext()
+
+  // Forward the request to the agent-proxy worker using the service binding
+  // Add session_id as a query param
+  const url = new URL(req.url)
+  url.searchParams.set('session_id', sessionId)
+  const proxyReq = new Request(url.toString(), {
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+  })
+
+  // @ts-expect-error: CloudflareEnv does not have AGENT_PROXY_WORKER
+  const proxyRes = await env.AGENT_PROXY_WORKER.fetch(proxyReq)
+
+  // Prepare headers for the response
+  const headers = new Headers(proxyRes.headers)
+
+  // Set session_id cookie if it was newly generated
+  if (setSessionCookie) {
+    headers.append(
+      'Set-Cookie',
+      `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax`
+    )
+  }
+
+  // Stream the response body back to the client
+  return new Response(proxyRes.body, {
+    status: proxyRes.status,
+    headers: proxyRes.headers,
+  })
+}
+
+// import { getCloudflareContext } from '@opennextjs/cloudflare'
+
+// export const maxDuration = 30
+
+// export async function POST(req: Request) {
+//   const { env } = getCloudflareContext()
+//   // Forward the request to the agent-proxy worker
+//   const proxyReq = new Request(req.url, {
+//     method: req.method,
+//     headers: req.headers,
+//     body: req.body,
+//   })
+//   // @ts-expect-error: CloudflareEnv does not have AGENT_PROXY_WORKER
+//   const proxyRes = await env.AGENT_PROXY_WORKER.fetch(proxyReq)
+//   // Stream the response body back to the client
+//   return new Response(proxyRes.body, {
+//     status: proxyRes.status,
+//     headers: proxyRes.headers,
+//   })
+// }
