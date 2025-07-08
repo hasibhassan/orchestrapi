@@ -13,7 +13,7 @@ function getCookie(req: Request, name: string): string | undefined {
 
 // Proxy all chat requests to the deployed Agent Worker endpoint
 export async function POST(req: Request) {
-  // Session management
+  // Session management: get or create a secure session_id
   let sessionId = getCookie(req, 'session_id')
   let setSessionCookie = false
   if (!sessionId) {
@@ -24,8 +24,7 @@ export async function POST(req: Request) {
   // Get the Cloudflare context (env with service bindings)
   const { env } = getCloudflareContext()
 
-  // Forward the request to the agent-proxy worker using the service binding
-  // Add session_id as a query param
+  // Always add session_id as a query param for deterministic DO mapping
   const url = new URL(req.url)
   url.searchParams.set('session_id', sessionId)
   const proxyReq = new Request(url.toString(), {

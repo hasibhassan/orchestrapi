@@ -8,18 +8,22 @@ export { OrchestrApiAgent }
 export default class extends WorkerEntrypoint {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
-
+    console.log('Proxy Worker: Received request', url.pathname)
     if (url.pathname === '/api/chat' && request.method === 'POST') {
       const sessionId = url.searchParams.get('session_id') || ''
-
+      console.log('Proxy Worker: Resolving agent for session', sessionId)
       const agent = await getAgentByName(
         (this.env as any).OrchestrApiAgent,
         sessionId
       )
-
-      return agent.fetch(request)
+      console.log('Proxy Worker: Got agent, forwarding request')
+      const response = await agent.fetch(request)
+      console.log(
+        'Proxy Worker: Got response from agent, body type:',
+        typeof response.body
+      )
+      return response
     }
-
     return new Response('No agent here', { status: 404 })
   }
 
