@@ -45,5 +45,7 @@ next-env.d.ts
 .dev.vars
 .open-next
 
-# Cursor
+# Cursor + others
 .cursor/
+.devcontainer/
+.gemini/

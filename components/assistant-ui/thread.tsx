@@ -19,9 +19,10 @@ import {
 import type { FC } from 'react'
 
 import { MarkdownText } from '@/components/assistant-ui/markdown-text'
+import { ReasoningPreview } from '@/components/assistant-ui/reasoning-preview'
+import { ToolFallback } from '@/components/assistant-ui/tool-fallback'
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button'
 import { Button } from '@/components/ui/button'
-import { ToolFallback } from './tool-fallback'
 
 export const Thread: FC = () => {
   return (
@@ -204,7 +205,11 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="grid grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] relative w-full max-w-[var(--thread-max-width)] py-4">
       <div className="text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words leading-7 col-span-2 col-start-2 row-start-1 my-1.5">
         <MessagePrimitive.Content
-          components={{ Text: MarkdownText, tools: { Fallback: ToolFallback } }}
+          components={{
+            Text: MarkdownText,
+            Reasoning: ReasoningPreview,
+            tools: { Fallback: ToolFallback },
+          }}
         />
         <MessagePrimitive.If submittedFeedback={undefined}>
           {

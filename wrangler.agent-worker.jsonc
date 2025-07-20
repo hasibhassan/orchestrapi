@@ -1,14 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": "cloudflare/agents/agent-proxy-worker.ts",
+  "main": "cloudflare/agent/agent-proxy-worker.ts",
   "name": "orchestrapi-agent-proxy-worker",
   "compatibility_date": "2025-07-07",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "ai": {
     "binding": "AI"
-  },
-  "vars": {
-    "TMDB_API_KEY": "placeholder"
   },
   "durable_objects": {
     "bindings": [

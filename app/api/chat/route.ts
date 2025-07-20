@@ -53,24 +53,3 @@ export async function POST(req: Request) {
     headers: proxyRes.headers,
   })
 }
-
-// import { getCloudflareContext } from '@opennextjs/cloudflare'
-
-// export const maxDuration = 30
-
-// export async function POST(req: Request) {
-//   const { env } = getCloudflareContext()
-//   // Forward the request to the agent-proxy worker
-//   const proxyReq = new Request(req.url, {
-//     method: req.method,
-//     headers: req.headers,
-//     body: req.body,
-//   })
-//   // @ts-expect-error: CloudflareEnv does not have AGENT_PROXY_WORKER
-//   const proxyRes = await env.AGENT_PROXY_WORKER.fetch(proxyReq)
-//   // Stream the response body back to the client
-//   return new Response(proxyRes.body, {
-//     status: proxyRes.status,
-//     headers: proxyRes.headers,
-//   })
-// }

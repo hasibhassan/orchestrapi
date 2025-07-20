@@ -17,16 +17,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-// import { useAgentChat } from 'agents/ai-react'
-// import { useAgent } from 'agents/react'
 
 export const Assistant = () => {
-  // // Connect to the agent (name should match your agent class, kebab-case)
-  // const agent = useAgent({ agent: 'orchestr-api-agent', name: 'default' })
-
-  // // Use the chat hook for messages, input, etc.
-  // useAgentChat({ agent })
-
   return (
     <MyRuntimeProvider>
       <SidebarProvider>
