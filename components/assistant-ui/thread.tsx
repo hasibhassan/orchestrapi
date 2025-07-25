@@ -98,12 +98,12 @@ const ThreadWelcomeSuggestions: FC = () => {
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion
         className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
-        prompt="Translate the plot of _Inception_ to French."
+        prompt="What is the plot summary of Inception?"
         method="replace"
         autoSend
       >
         <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          Translate the plot of Inception to French
+          What is the plot summary of Inception?
         </span>
       </ThreadPrimitive.Suggestion>
     </div>

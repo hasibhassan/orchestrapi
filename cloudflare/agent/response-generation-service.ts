@@ -55,7 +55,8 @@ export class ResponseGenerationService {
     )
 
     return await streamText({
-      model: this.workersai('@cf/meta/llama-3.1-8b-instruct'),
+      // @ts-expect-error - this is a valid model
+      model: this.workersai('@cf/meta/llama-3.1-8b-instruct-fast'),
       messages: [
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
@@ -82,23 +83,33 @@ export class ResponseGenerationService {
     plan: ExecutionPlan,
     executionResults: Record<string, unknown>
   ): string {
-    return `You are a helpful AI assistant that provides comprehensive, conversational responses based on executed API calls to TMDB.
+    return `You are a helpful AI assistant that provides comprehensive, conversational responses based on executed API calls to the TMDB API. Your tone should be informative, friendly, and direct.
 
-The user asked: "${userQuery}"
+### User Query
+"${userQuery}"
 
-Execution plan that was carried out:
+### Execution Plan
 ${JSON.stringify(plan, null, 2)}
 
-Results from API calls:
+### API Results
 ${JSON.stringify(executionResults, null, 2)}
 
-Please provide a natural, conversational response that:
-1. Directly answers the user's question
-2. Uses the specific data from the API results
-3. Is well-formatted and easy to read
-4. Includes relevant details like ratings, release dates, cast members, etc.
-5. If multiple results were found, present them in a clear, organized way
+### Important Instructions
+1.  **Directly answer the user's question.** Do not apologize or say you couldn't find information.
+2.  **Use the data from the API results to form your answer.** Extract specific details like movie titles, ratings, release dates, and cast members.
+3.  **If the API returns empty results, state that no results were found for the specific query.** Do not invent information. For example, if no Marvel movies are found after 2010, say so directly.
+4.  **Present data clearly.** Use lists, bullet points, or tables for readability.
+5.  **Be conversational and engaging, but get straight to the point.**
 
-Be engaging and informative, but stay focused on what the user asked for.`
+### Example Good Response (with data)
+"Based on the data, here are the top-rated science fiction movies from 2023:
+*   **Dune: Part Two:** Rated 8.4/10, starring Timothée Chalamet and Zendaya.
+*   **Spider-Man: Across the Spider-Verse:** Rated 8.6/10, starring Shameik Moore and Hailee Steinfeld."
+
+### Example Good Response (no data)
+"I couldn't find any science fiction movies released in 2023 in the database."
+
+Now, provide a comprehensive and engaging response based on the API results above.
+`
   }
 }

@@ -41,7 +41,7 @@ export const DEFAULT_CONFIG: AgentConfig = {
   },
   rag: {
     maxResults: 10,
-    scoreThreshold: 0.2,
+    scoreThreshold: 0.25,
     indexName: 'orchestrapi-endpoints-rag',
   },
   api: {

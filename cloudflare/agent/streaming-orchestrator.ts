@@ -72,52 +72,96 @@ export class StreamingOrchestrator {
       executionTrace: [],
     }
 
+    console.log('🚀 [ORCHESTRATOR] Starting RAG workflow for:', userMessage)
+
     try {
-      // Step 1: RAG Search
+      // Step 1: RAG Search + Foundational Tools
       await this.sendStatus(
         controller,
         encoder,
         'Searching API documentation...'
       )
+
+      // First, perform a semantic search to find the most relevant tools
       const apiSearchResult = await this.ragService.searchApiDocumentation(
         userMessage
       )
 
-      trace.ragChunks = apiSearchResult.data.map(
+      const foundDocs = apiSearchResult.data.map(
         (chunk: Record<string, unknown>) => ({
-          id: (chunk.id as string) || crypto.randomUUID(),
           text:
             (chunk.content as Array<Record<string, unknown>>)
               ?.map((c: Record<string, unknown>) => c.text as string)
               .join(' ') || '',
-          score: (chunk.score as number) || 0,
         })
       )
-      trace.searchQuery =
-        (apiSearchResult.search_query as string) || userMessage
 
-      const apiDocs = apiSearchResult.data
-        .map(
-          (chunk: Record<string, unknown>) =>
-            (chunk.content as Array<Record<string, unknown>>)
-              ?.map((c: Record<string, unknown>) => c.text as string)
-              .join(' ') || ''
-        )
-        .join('\n\n')
+      console.log(
+        '✅ [ORCHESTRATOR] RAG found docs:',
+        JSON.stringify(foundDocs, null, 2)
+      )
+
+      // Now, create a "safety net" of foundational tools to ensure
+      // the planner can always handle entity resolution.
+      const foundationalTools = [
+        'search-multi',
+        'search-company',
+        'search-person',
+        'search-movie',
+        'search-tv',
+        'discover-movie',
+        'movie-credits',
+      ]
+      const tmdbOpenApi = await import('../../lib/tmdb-open-api.json')
+      const allPaths = tmdbOpenApi.default.paths as Record<
+        string,
+        Record<string, { operationId?: string }>
+      >
+      const foundationalDocs = foundationalTools
+        .map((toolName) => {
+          for (const path in allPaths) {
+            for (const method in allPaths[path]) {
+              if (allPaths[path][method].operationId === toolName) {
+                return JSON.stringify({
+                  path,
+                  ...allPaths[path][method],
+                })
+              }
+            }
+          }
+          return ''
+        })
+        .filter(Boolean)
+
+      // Combine the RAG results with the foundational tools, removing duplicates
+      const combinedDocs = [
+        ...new Set([...foundDocs.map((d) => d.text), ...foundationalDocs]),
+      ].join('\n\n')
 
       await this.sendTrace(
         controller,
         encoder,
         'documentation_search',
-        trace.ragChunks?.slice(0, 3) || []
+        foundDocs.slice(0, 3)
       )
 
       // Step 2: Planning
-      await this.sendStatus(controller, encoder, 'Planning execution steps...')
+      await this.sendStatus(
+        controller,
+        encoder,
+        'Planning execution steps. This may take a considerable amount of time...'
+      )
+
       const plan = await this.planningService.createExecutionPlan(
         userMessage,
-        apiDocs,
+        combinedDocs,
         fullMessages
+      )
+
+      console.log(
+        '✅ [ORCHESTRATOR] Plan created with',
+        plan.steps.length,
+        'steps'
       )
 
       trace.planningSteps = [
@@ -132,27 +176,28 @@ export class StreamingOrchestrator {
 
       // Step 3: Execution
       await this.sendStatus(controller, encoder, 'Executing API calls...')
+
       const executionResults = await this.toolExecutionService.executePlan(plan)
 
       trace.executionTrace = executionResults.executionTrace
-      trace.toolCalls = plan.steps.map((step) => ({
-        name: step.tool,
-        args: step.parameters,
-        result: executionResults.results[step.id],
-      }))
 
-      // Send tool call traces
+      // Send tool call traces with interpolated arguments
       for (const step of plan.steps) {
         const result = executionResults.results[step.id]
         const executionStep = executionResults.executionTrace.find(
-          (trace: Record<string, unknown>) => trace.step === step.description
+          (trace) => trace.step === step.description
         )
+
+        // Find the actual (interpolated) parameters used in the execution
+        const finalArgs =
+          // @ts-expect-error - interpolatedParameters is not typed
+          executionStep?.details?.interpolatedParameters || step.parameters
 
         await this.sendTrace(controller, encoder, 'tool_call', {
           tool: step.tool,
-          args: step.parameters,
+          args: finalArgs,
           result: result,
-          status: (executionStep?.status as string) || 'completed',
+          status: executionStep?.status || 'completed',
         })
       }
 
@@ -165,6 +210,7 @@ export class StreamingOrchestrator {
 
       // Step 4: Response Generation
       await this.sendStatus(controller, encoder, 'Generating response...')
+
       const responseStream =
         await this.responseGenerationService.generateFinalResponse(
           userMessage,
@@ -183,6 +229,10 @@ export class StreamingOrchestrator {
           )
         )
       }
+      // Add a final done marker
+      controller.enqueue(
+        encoder.encode(JSON.stringify({ type: 'done' }) + '\n')
+      )
 
       // Store final response with trace
       await this.databaseService.insertTurn({
@@ -201,21 +251,18 @@ export class StreamingOrchestrator {
         lastUpdated: Date.now(),
       })
 
-      controller.enqueue(
-        encoder.encode(JSON.stringify({ type: 'done' }) + '\n')
-      )
+      console.log('✅ [ORCHESTRATOR] RAG workflow completed successfully')
     } catch (error) {
-      console.error('Orchestration error:', error)
+      console.error('❌ [ORCHESTRATOR] Error:', error)
+
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'An error occurred during processing'
+        error instanceof Error ? error.message : String(error)
+
       controller.enqueue(
         encoder.encode(
           JSON.stringify({ type: 'error', message: errorMessage }) + '\n'
         )
       )
-      throw error
     }
   }
 

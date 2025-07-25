@@ -8,7 +8,7 @@ export const ReasoningPreview: ReasoningContentPartComponent = ({
   status,
   // duration, // <- TODO: This needs to be added
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
     <div className="mb-4 flex w-full flex-col gap-3 border-l-2 py-1">

@@ -13,6 +13,7 @@ interface AgentWithEnv extends AgentInterface {
   env: {
     AI: unknown
     TMDB_API_KEY: string
+    TMDB_API_TOKEN: string
   }
 }
 

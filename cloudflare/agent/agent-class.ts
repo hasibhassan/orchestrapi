@@ -17,6 +17,7 @@ interface AgentWithEnv {
   env: {
     AI: unknown
     TMDB_API_KEY: string
+    TMDB_API_TOKEN: string
   }
 }
 
@@ -45,7 +46,15 @@ export class OrchestrApiAgent extends Agent<Env> {
     this.databaseService = new DatabaseService(this as unknown as AgentWithEnv)
     this.ragService = new RagService(this.env)
     this.planningService = new PlanningService(this.env)
-    this.toolExecutionService = new ToolExecutionService(this.env)
+    // For now, we'll use TMDB as the default API
+    // In the future, this could be made configurable based on the request or environment
+    const tmdbOpenApi = await import('../../lib/tmdb-open-api.json')
+    this.toolExecutionService = new ToolExecutionService(
+      this.env,
+      tmdbOpenApi.default,
+      'https://api.themoviedb.org/3'
+    )
+    await this.toolExecutionService.initialize()
     this.responseGenerationService = new ResponseGenerationService(this.env)
     this.orchestrator = new StreamingOrchestrator(
       this.ragService,

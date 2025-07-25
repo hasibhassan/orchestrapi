@@ -1,7 +1,7 @@
 export interface Env {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  AI: any
+  AI: Ai
   TMDB_API_KEY: string
+  TMDB_API_TOKEN: string
 }
 
 export interface ConversationTurn {
