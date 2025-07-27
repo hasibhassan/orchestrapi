@@ -33,7 +33,6 @@ export async function POST(req: Request) {
     body: req.body,
   })
 
-  // @ts-expect-error: CloudflareEnv does not have AGENT_PROXY_WORKER
   const proxyRes = await env.AGENT_PROXY_WORKER.fetch(proxyReq)
 
   // Prepare headers for the response
