@@ -1,214 +1,172 @@
-# OrchestrAPI - Serverless RAG Agent Orchestration Framework
+<h1 align="center">
+  OrchestrAPI
+  <br>
+</h1>
 
-A powerful, serverless framework for building AI agents that can interpret and execute complex natural language queries against public APIs, starting with TMDb.
+<p align="center">
+  A RAG Agent for orchestrating any API
+</p>
+
+OrchestrAPI is a RAG Agent orchestration framework that can interpret complex natural language queries and execute them against an API. Built on the Cloudflare Agents SDK and the cutting-edge stack of Cloudflare Workers, Durable Objects, and the Vercel AI SDK, this project demonstrates a robust, production-ready architecture for creating scalable and intelligent AI agents.
+
+This repository uses the [TMDB (The Movie Database)](https://www.themoviedb.org/?language=en-US) API as a demonstration of the agent's capabilities.
+
+## Technologies Used
+
+- **UI Framework**: [Next.js](https://nextjs.org/)
+- **Backend**: [Cloudflare Workers](https://workers.cloudflare.com/)
+- **State Management**: [Cloudflare Durable Objects](https://www.cloudflare.com/developer-platform/products/durable-objects/)
+- **Vector Store**: [Cloudflare AutoRAG](https://developers.cloudflare.com/autorag/)
+- **Inference Provider**: [Cloudflare Workers AI](https://www.cloudflare.com/developer-platform/products/workers-ai/)
+- **Agent Framework**: [Cloudflare Agents SDK](https://agents.cloudflare.com/)
+
+## Navigating this project
+
+```sh
+.
+├── app/
+│   ├── api/chat/route.ts      # Next.js API route for the chat UI
+│   └── assistant.tsx          # Main frontend component for the assistant UI
+├── cloudflare/
+│   └── agent/
+│       ├── streaming-orchestrator.ts # Coordinates the 4-step agent process
+│       ├── planning-service.ts       # Creates execution plan from user query
+│       ├── tool-execution-service.ts # Executes API calls based on the plan
+│       └── rag-service.ts            # Finds relevant endpoints with AutoRAG
+├── lib/
+│   └── tmdb-open-api.json     # OpenAPI spec for the TMDB API
+└── wrangler.jsonc             # Configuration for the Cloudflare Worker
+```
+
+- [**Streaming Orchestrator** (`streaming-orchestrator.ts`)](/cloudflare/agent/streaming-orchestrator.ts): The core of the agent, managing the flow from query to response.
+- [**Hybrid RAG Search** (`rag-service.ts`)](/cloudflare/agent/rag-service.ts): Finds relevant API endpoints using Cloudflare AutoRAG.
+- [**LLM Planning** (`planning-service.ts`)](/cloudflare/agent/planning-service.ts): Generates a multi-step execution plan using an LLM.
+- [**Deterministic Tool Execution** (`tool-execution-service.ts`)](/cloudflare/agent/tool-execution-service.ts): Executes the plan by calling the correct API tools.
+- [**Frontend** (`assistant.tsx`)](/app/assistant.tsx): The main React component for the chat interface.
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph "User's Browser"
+        A[Chat Interface]
+    end
+
+    subgraph "Cloudflare Network"
+        B[Next.js Worker/Agent Proxy]
+        subgraph "Agent"
+            C[Orchestrator] --> D[Planning Service]
+            C --> E[Tool Execution Service]
+            C --> F[Response Generation]
+        end
+    end
+
+    subgraph "External Services"
+        G["Cloudflare Workers AI <br>(LLM & Vector Search)"]
+        H[TMDB API]
+    end
+
+    A -- "POST /api/chat" --> B
+    B --> C
+    D -- "Creates Plan" --> G
+    E -- "Executes Tools" --> H
+    F -- "Generates Final Answer" --> G
+```
+
+## How It Works
+
+The agent uses a 4-step process to answer user queries, coordinated by a central [`StreamingOrchestrator`](/cloudflare/agent/streaming-orchestrator.ts). This provides a transparent, real-time experience for the user.
+
+1. **Hybrid RAG Search**: For any user query, the agent first queries **Cloudflare AutoRAG**, which performs a semantic search against the OpenAPI specification to find the most relevant API endpoints. Each endpoint in the OpenAPI spec is formatted and summarized to fit the chunk size limit in the vector database. To make the agent more robust, these results are combined with a curated "safety net" of foundational tools (e.g., `search-company`, `search-person`) that are essential for resolving entities.
+
+2. **LLM Planning**: The combined documentation is then passed to the [`PlanningService`](/cloudflare/agent/planning-service.ts), which uses [DeepSeeks's R1 Distill Qwen 32B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B) model to create a structured, multi-step JSON execution plan. The prompt for this stage is hardened to ensure the LLM generates valid, executable plans that can handle dependencies between steps (e.g., using the ID from step 1 as an input for step 2).
+
+3. **Deterministic Tool Execution**: The [`ToolExecutionService`](/cloudflare/agent/tool-execution-service.ts) executes the plan. It uses functions derived from the OpenAPI spec and calls them directly with parameters from the plan. This approach is deterministic and avoids unpredictable "AI calling an AI" behavior.
+
+4. **Response Generation**: Finally, the raw JSON results from the API calls are passed to the [`ResponseGenerationService`](/cloudflare/agent/response-generation-service.ts), which uses one last LLM call to synthesize the data into a human-readable answer.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Next.js Worker (/api/chat)
-    participant Agent Worker (Durable Object)
-    participant AutoRAG/Workers AI/TMDb
+    participant Next.js Frontend
+    participant Agent
+    participant Workers AI (LLM)
+    participant TMDB API
 
-    User->>Next.js Worker: POST /api/chat (with session ID)
-    Next.js Worker->>Agent Worker: Proxy request (session ID routes to DO)
-    Agent Worker->>Agent Worker: Update state, process message
-    Agent Worker->> RAG/Workers AI/TMDb: Retrieval, planning, execution
-    Agent Worker-->>Next.js Worker: Stream reasoning/results
-    Next.js Worker-->>User: Stream reasoning/results
+    User->>Next.js Frontend: "What are the most popular movies produced by Pixar?"
+    Next.js Frontend->>Agent: POST /api/chat
+    Agent->>Agent: 1. Hybrid RAG Search
+    Note right of Agent: Combines semantic search results with a 'safety net' of foundational tools (like search-company).
+    Agent->>Workers AI (LLM): 2. Plan Execution
+    Note right of Agent: "Find Pixar's ID, then find their movies."
+    Workers AI (LLM)-->>Agent: Execution Plan (JSON)
+    Agent->>TMDB API: 3. Execute Step 1: search-company(query="Pixar")
+    TMDB API-->>Agent: Company ID: 3
+    Agent->>TMDB API: 3. Execute Step 2: discover-movie(with_companies=3)
+    TMDB API-->>Agent: List of Pixar movies
+    Agent->>Workers AI (LLM): 4. Generate Response
+    Note right of Agent: Synthesize the list of movies into a friendly answer.
+    Workers AI (LLM)-->>Agent: Streamed natural language response
+    Agent-->>Next.js Frontend: Stream reasoning & final answer
+    Next.js Frontend-->>User: Displays the full execution trace and final answer.
 ```
 
-```mermaid
-graph TD;
-    subgraph Frontend
-        A[assistant-ui Chat] -- User Query --> B{Next.js API Route};
-    end
+## Architectural Considerations
 
-    subgraph Cloudflare Backend
-        B -- "1. Plan" --> C[Planner Worker];
-        C -- "LLM Call #1<br/>(Fast & Focused)" --> D[Extract Intent & Entities];
-        D -- "Structured Plan<br/>(e.g., {intent: 'find_similar', entity: 'Inception'})" --> E[Executor Worker];
-        
-        subgraph "Hard-coded Workflow"
-            E -- "Code, not LLM, decides the steps" --> F[Step A: Call Search Tool];
-            F -- "ID: 557" --> G[Step B: Call Similar Tool];
-        end
+- **Hybrid RAG**: Combines semantic search with a curated list of foundational tools for robust planning.
+- **Multi-Step Planning**: Capable of creating and executing complex, multi-step plans to answer nuanced questions.
+- **Deterministic Execution**: Uses a reliable, direct execution path for tool calls, avoiding unpredictable behavior.
+- **Streaming UI**: Provides a real-time, transparent view into the agent's reasoning process, using the Vercel AI SDK's streaming utilities.
+- **Serverless & Scalable**: Built entirely on Cloudflare's serverless platform (Workers, Durable Objects, AutoRAG), ensuring high scalability and cost-efficiency.
 
-        G -- "Final Data<br/>(e.g., list of movies)" --> H[Answer Generator Worker];
-        H -- "LLM Call #2<br/>(Simple & Creative)" --> I[Synthesize Natural Language Response];
-    end
-    
-    I -- "Streamed Conversational Response" --> B;
-
-    style C fill:#D6EAF8,stroke:#333,stroke-width:2px
-    style E fill:#D1F2EB,stroke:#333,stroke-width:2px
-    style H fill:#FCF3CF,stroke:#333,stroke-width:2px
-```
-
-## 🚀 Features
-
-- **Serverless Architecture**: Built on Cloudflare Workers and Durable Objects
-- **AutoRAG Integration**: Semantic search over embedded OpenAPI documentation
-- **Multi-step Execution**: Complex queries broken down into logical API calls
-- **Streaming Responses**: Real-time updates with reasoning traces
-- **Assistant UI Integration**: Beautiful chat interface with reasoning and tool call displays
-- **@cloudflare/ai-utils Integration**: Enhanced tool execution with AI-powered function calling
-
-## 🛠️ @cloudflare/ai-utils Integration
-
-This project now integrates `@cloudflare/ai-utils` for enhanced tool execution capabilities:
-
-### Enhanced Features
-
-1. **Automatic Tool Generation**: `createToolsFromOpenAPISpec` automatically generates tools from your OpenAPI specification
-2. **AI-Powered Execution**: `runWithTools` provides intelligent tool execution with LLM integration
-3. **Better Error Handling**: Enhanced error handling and fallback mechanisms
-4. **Streaming Support**: Built-in support for streaming tool execution results
-
-### Usage
-
-The agent now supports two execution modes:
-
-```typescript
-// Regular execution (existing)
-const results = await agent.executePlan(plan)
-
-// AI-utils enhanced execution
-const results = await agent.executePlan(plan, true) // useAIUtils = true
-```
-
-### Benefits
-
-- **Automatic Parameter Validation**: Tools are automatically validated against the OpenAPI spec
-- **Intelligent Error Recovery**: AI can suggest alternative approaches when tools fail
-- **Better Tool Discovery**: LLM can discover and use tools more intelligently
-- **Enhanced Debugging**: Better error messages and execution traces
-
-### Configuration
-
-The AI-utils integration is configured in `cloudflare/agents/agent-class.ts`:
-
-```typescript
-// Enhanced tool execution using @cloudflare/ai-utils
-async executeToolWithAIUtils(toolName: string, parameters: Record<string, unknown>) {
-  const tools = await createToolsFromOpenAPISpec(JSON.stringify(tmdbOpenApi), {
-    overrides: [
-      {
-        matcher: ({ url }) => url.hostname === 'api.themoviedb.org',
-        values: {
-          headers: { 'Accept': 'application/json' },
-          query: { api_key: this.env.TMDB_API_KEY },
-        },
-      },
-    ],
-  })
-
-  return await runWithTools(this.env.AI, '@cf/meta/llama-3.1-8b-instruct', {
-    messages: [{ role: 'user', content: `Execute ${toolName} with ${JSON.stringify(parameters)}` }],
-    tools,
-  })
-}
-```
-
-## 🏗️ Architecture
-
-### Core Components
-
-- **Agent Class**: Main orchestration logic with conversation management
-- **AutoRAG**: Semantic search over API documentation
-- **Execution Engine**: Multi-step plan execution with dependency handling
-- **Streaming Response**: Real-time updates with reasoning traces
-- **Assistant UI**: React-based chat interface with content type support
-
-### Data Flow
-
-1. **User Query** → Agent receives natural language query
-2. **AutoRAG Search** → Relevant API documentation retrieved
-3. **Plan Generation** → AI creates execution plan with specific API calls
-4. **Tool Execution** → API calls executed with proper error handling
-5. **Response Generation** → Conversational response based on results
-6. **Streaming Display** → Real-time updates in Assistant UI
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- Cloudflare account with Workers AI enabled
-- TMDb API key
-- Node.js 18+
+- A Cloudflare account
+- A TMDB API Key
+- [Node.js](https://nodejs.org/) (v18 or later)
 
-### Installation
+### Installation & Setup
 
-```bash
-npm install
-```
+1. **Clone the repository:**
 
-### Configuration
+    ```bash
+    git clone https://github.com/hasibhassan/orchestrapi.git
+    cd orchestrapi
+    ```
 
-1. Set up your Cloudflare environment variables:
+2. **Install dependencies:**
 
-   ```bash
-   # Add to wrangler.toml or environment
-   TMDB_API_KEY = "your_tmdb_api_key"
-   ```
+    ```bash
+    npm install
+    ```
 
-2. Deploy to Cloudflare:
+3. **Configure Cloudflare:**
+    - Rename `wrangler.toml.example` to `wrangler.toml` and fill in your Cloudflare account details.
+    - Create a D1 database and an AutoRAG index in your Cloudflare dashboard. Add the binding names and IDs to your `wrangler.toml`.
+    - Create a `.dev.vars` file in the root of the project and add your TMDB API key (or set via the Console):
 
-   ```bash
-   npm run deploy
-   ```
+      ```
+      TMDB_API_TOKEN="your_tmdb_api_token_here"
+      ```
 
-### Usage
+    >[!NOTE]
+    >You will need to run a script to parse your `tmdb-open-api.json` and insert the vectors into your Cloudflare AutoRAG index. (Note: The seeding script is not included in this repository. Keep in mind the chunking limits in Vectorize.).
 
-1. Start the development server:
+4. **Run the development server:**
 
-   ```bash
-   npm run dev
-   ```
+    ```bash
+    npm run dev
 
-2. Ask questions like:
-   - "Find the highest-rated sci-fi movie from 2023"
-   - "What are the top 5 action movies?"
-   - "Get details about the movie Inception"
+    # To deploy ensure you have the Cloudflare Wrangler CLI configured properly:
+    npm run deploy
+    # also as of now, you will have to deploy the agent-proxy-worker manually
+    wrangler deploy --config wrangler.agent-worker.jsonc
+    ```
 
-## 🎯 Content Types
+This will start the Next.js frontend and the Cloudflare Worker backend simultaneously. You can ask questions like:
 
-The framework supports multiple content types for rich UI display:
-
-- **Text**: Main conversational responses
-- **Reasoning**: Planning steps and status updates
-- **Tool Calls**: API operations with collapsible details
-- **Sources**: References to API documentation
-
-## 🔧 Development
-
-### Project Structure
-
-```
-orchestrapi/
-├── app/                    # Next.js frontend
-├── cloudflare/            # Cloudflare Workers
-│   ├── agent/           # Agent orchestration
-│   └── workers/          # Individual workers
-├── components/           # React components
-├── lib/                 # Shared utilities
-└── public/              # Static assets
-```
-
-### Key Files
-
-- `cloudflare/agent/agent-class.ts`: Main agent orchestration
-- `app/MyRuntimeProvider.tsx`: Frontend runtime integration
-- `components/assistant-ui/thread.tsx`: Chat UI components
-- `lib/tool-middleware.ts`: Tool execution utilities
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+- "Find the highest-rated sci-fi movie from 2023"
+- "What are the top 5 action movies?"
+- "Get details about the movie Inception"
