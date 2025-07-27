@@ -1,4 +1,7 @@
 <h1 align="center">
+  <br>
+  <a href="https://orchestrapi.4ad2.workers.dev/"><img src="./public/logo-black.svg" alt="OrchestrAPI logo" width="100"></a>
+  <br>
   OrchestrAPI
   <br>
 </h1>
