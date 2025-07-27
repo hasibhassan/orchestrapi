@@ -88,22 +88,22 @@ const ThreadWelcomeSuggestions: FC = () => {
     <div className="mt-3 flex w-full items-stretch justify-center gap-4">
       <ThreadPrimitive.Suggestion
         className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
-        prompt="Which actor has starred in the most Marvel films since 2010?"
+        prompt="What are the most popular movies produced by Pixar?"
         method="replace"
         autoSend
       >
         <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          Which actor has starred in the most Marvel films since 2010?
+          What are the most popular movies produced by Pixar?
         </span>
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion
         className="hover:bg-muted/80 flex max-w-sm grow basis-0 flex-col items-center justify-center rounded-lg border p-3 transition-colors ease-in"
-        prompt="What is the plot summary of Inception?"
+        prompt="Find me the details for the movie 'Inception'."
         method="replace"
         autoSend
       >
         <span className="line-clamp-2 text-ellipsis text-sm font-semibold">
-          What is the plot summary of Inception?
+          Find me the details for the movie Inception
         </span>
       </ThreadPrimitive.Suggestion>
     </div>
