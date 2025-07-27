@@ -14,9 +14,7 @@ OrchestrAPI is a RAG Agent orchestration framework that can interpret complex na
 
 This repository uses the [TMDB (The Movie Database)](https://www.themoviedb.org/?language=en-US) API as a demonstration of the agent's capabilities.
 
-
-https://github.com/user-attachments/assets/84ed63d8-2dbb-4660-926d-172b40f090a6
-
+https://github.com/user-attachments/assets/2070056f-e281-4f6c-a7d0-4994a1b714d7
 
 ## Technologies Used
 
